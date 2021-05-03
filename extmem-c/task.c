@@ -2,11 +2,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "extmem.h"
+#include <string.h>
+#define TUPLE_NUM_IN_BLK 7 //Ò»¸öblkÀïÍ·tupleµÄ¸öÊı
+#define BLK_NUM_IN_BUFFER 8 //Ò»¸öbufferÀïÍ·blkµÄ¸öÊı
 #define R_START 1
 #define R_END 16
 #define S_START 17
 #define S_END 48
 #define TASK1_BLK_RESULT 100
+#define TASK2_BLK_RESULT 200
+
+struct Tuple{
+    int X;
+    int Y;
+};
 
 void int2str(unsigned char *dst, int a) {
     int base = 1000;
@@ -18,11 +27,14 @@ void int2str(unsigned char *dst, int a) {
 }
 
 int LinerSearch(int key){
-    //ä»»åŠ¡ä¸€ï¼šåŸºäºçº¿æ€§æœç´¢çš„å…³ç³»é€‰æ‹©ç®—æ³•ï¼Œå®ç°çº¿æ€§æœç´¢(S.C,S.D)where S.C = 50
+    //ÈÎÎñÒ»£º»ùÓÚÏßĞÔËÑË÷µÄ¹ØÏµÑ¡ÔñËã·¨£¬ÊµÏÖÏßĞÔËÑË÷(S.C,S.D)where S.C = 50
+    printf("--------------------\n");
+    printf("»ùÓÚÏßĞÔËÑË÷µÄÑ¡ÔñËã·¨\n");
+    printf("--------------------\n");
     Buffer buf; 
     unsigned char *blk;
-    unsigned char *blk_w;   //ç”¨äºå†™
-    int blk_w_num = 0;  //ç»Ÿè®¡å†™çš„blkä¸­æœ‰å‡ ä¸ªï¼Œæœ‰7ä¸ªä¹‹åå°±è¦å†™åˆ°å¤–å­˜ä¸­
+    unsigned char *blk_w;   //ÓÃÓÚĞ´
+    int blk_w_num = 0;  //Í³¼ÆĞ´µÄblkÖĞÓĞ¼¸¸ö£¬ÓĞ7¸öÖ®ºó¾ÍÒªĞ´µ½Íâ´æÖĞ
     int blk_w_id = TASK1_BLK_RESULT;
     int i = 0;
     if (!initBuffer(520, 64, &buf)){
@@ -33,14 +45,14 @@ int LinerSearch(int key){
     blk_w = getNewBlockInBuffer(&buf); 
 
     for(int blk_id = S_START;blk_id <= S_END;blk_id ++){
+        printf("¶ÁÈëÊı¾İ¿é%d\n",blk_id);
         if ((blk = readBlockFromDisk(blk_id, &buf)) == NULL){
             perror("Reading Block Failed!\n");
             return -1;
         }
-        printf("blk_id = %d\n",blk_id);
         int C = -1,D = -1,addr = -1;
         char str[5];
-        for (i = 0; i < 7; i++){
+        for (i = 0; i < TUPLE_NUM_IN_BLK; i++){
             for (int k = 0; k < 4; k++){
                 str[k] = *(blk + i*8 + k);
             }
@@ -49,58 +61,37 @@ int LinerSearch(int key){
                 str[k] = *(blk + i*8 + 4 + k);
             }
             D = atoi(str);
-            printf("(%d,%d)\n",C,D);
             if(C == 50  || (blk_id == S_END && i == 6)){
                 if(C == 50){
+                    printf("C = %d,D = %d\n",C,D);
                     for (int k = 0;k < 8;k ++){
                         *(blk_w + blk_w_num * 8 + k) = *(blk + i*8 + k);
                     }
                     blk_w_num ++;
                 }
-                
-                printf("blk_w_num = %d\n",blk_w_num);
-                if(blk_w_num == 7 || (blk_id == S_END && i == 6)){
+
+                if(blk_w_num == TUPLE_NUM_IN_BLK || (blk_id == S_END && i == 6)){
                     unsigned char str_blk_w_id[4];
                     int2str(str_blk_w_id, blk_w_id + 1);
                     for (int k = 0;k < 4;k ++){
-                        *(blk_w + 7 * 8 + k) = str_blk_w_id[k];
+                        *(blk_w + TUPLE_NUM_IN_BLK * 8 + k) = str_blk_w_id[k];
                     }
                     if (writeBlockToDisk(blk_w, blk_w_id, &buf) != 0){
                         perror("Writing Block Failed!\n");
                         return -1;
                     }
+                    printf("½á¹ûĞ´Èë´ÅÅÌ:%d\n",blk_w_id);
                     blk_w_id++;
                     freeBlockInBuffer(blk_w, &buf);
                     blk_w_num  = 0;
                     blk_w = getNewBlockInBuffer(&buf); 
                     memset(blk_w,0,64);
-                    printf("get new blk\n");
-                    // int CC,DD;
-                    // for(int v = 0;v < 7;v ++){
-                    //     for(int b = 0;b < 4;b ++){
-                    //         str[b] = *(blk_w + v*8 + b);
-                    //     }
-                    //     CC = atoi(str);
-                    //     for(int b = 0;b < 4;b ++){
-                    //         str[b] = *(blk_w + i*8 + 4 + b);
-                    //     }
-                    //     DD = atoi(str);
-                    //     printf("CC(%d,%d)\n",CC,DD);
-                    // }
                     
                 }
                 /* Write the block to the hard disk */
             }
         }
-        for (int k = 0; k < 4; k++)
-        {
-            str[k] = *(blk + i*8 + k);
-        }
-        addr = atoi(str);
-        printf("\nnext address = %d \n", addr);
         freeBlockInBuffer(blk, &buf);
-        printf("\n");
-        printf("IO's is %d\n", buf.numIO); /* Check the number of IO's */
         
     }
     
@@ -108,8 +99,94 @@ int LinerSearch(int key){
     return 0;
 }
 
+int cmpTule(const void *p1, const void *p2){
+    struct Tuple t1 = *(struct Tuple *)p1;
+    struct Tuple t2 = *(struct Tuple *)p2;
+    return t1.X - t2.X;
+
+}
+int tpmms_step1(int start,int end){
+    //tpmmsµÚÒ»½×¶Î£ºÏÈ½«Ã¿¸öblkµÄÊı¾İ¶Á³öÀ´£¬°´ÕÕµÚÒ»¸öÊôĞÔÅÅĞò
+    Buffer buf; 
+    if (!initBuffer(520, 64, &buf)){
+        perror("Buffer Initialization Failed!\n");
+        return -1;
+    }
+
+    unsigned char *blk_r[BLK_NUM_IN_BUFFER - 1];   //ÓÃÓÚ¶Á
+    int buffer_blk_num = 0; //   ÓÃÀ´¼ÇÂ¼bufflerÖĞblkµÄÊıÁ¿
+    for(int blk_id = start;blk_id <= end ;blk_id ++){
+        printf("blk_id = %d\n",blk_id);
+        if(buffer_blk_num < BLK_NUM_IN_BUFFER - 1){
+            //ÒªÁôÒ»¸öblkµÄÎ»ÖÃÀ´Ğ´£¬ÏÈ½«¶«Î÷¶Áµ½bufferÖĞ
+            blk_r[buffer_blk_num]=readBlockFromDisk(blk_id, &buf);
+            buffer_blk_num ++;
+        }
+        else{
+            for(int t = 0;t < buffer_blk_num;t ++){
+                unsigned char *blk_r_temp = blk_r[t];
+                int X = -1,Y = -1;
+                char str[5];
+                struct Tuple tuple[7];
+                for (int i = 0; i < TUPLE_NUM_IN_BLK; i++){
+                    //¶ÔÓÚÒ»¸öblk½øĞĞÅÅĞò
+                    for (int k = 0; k < 4; k++){
+                        str[k] = *(blk_r_temp + i*8 + k);
+                    }
+                    X = atoi(str);
+                    for (int k = 0; k < 4; k++){
+                        str[k] = *(blk_r_temp + i*8 + 4 + k);
+                    }
+                    Y = atoi(str);
+                    tuple[i].X = X;
+                    tuple[i].Y = Y;
+                }
+                qsort(tuple,TUPLE_NUM_IN_BLK,sizeof(struct Tuple), cmpTule);
+                //½«ÅÅºÃĞòµÄĞ´»Øµ½bufferÖĞ
+                for(int i = 0;i < TUPLE_NUM_IN_BLK;i ++){
+                    unsigned char str1[4];
+                    unsigned char str2[4];
+                    int2str(str1,tuple[i].X);
+                    int2str(str2,tuple[i].Y);
+                    for (int k = 0; k < 4; k++){
+                        *(blk_r_temp + i*8 + k) = str1[k];
+                        *(blk_r_temp + i*8 + k + 4) = str2[k];
+                    }
+                }
+
+                
+            }
+            return 0;
+
+
+
+                
+                
+            
+            return 0;
+
+        }
+
+
+
+    }
+
+    
+        
+    
+    
+
+    return 0;
+
+}
+int tpmms(int start,int end){
+    tpmms_step1(start,end);
+
+}
 
 int main(){
-    LinerSearch(50);
+   // LinerSearch(50);
+   tpmms(R_START,R_END);
+
     return 0;
 }
