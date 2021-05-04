@@ -12,8 +12,8 @@
 #define S_START 17
 #define S_END 48
 #define TASK1_BLK_RESULT 100
-#define TASK2_BLK_RESULT_STEP1 200
-#define TASK2_BLK_RESULT_STEP2 250
+#define TASK2_BLK_RESULT_STEP1 300
+#define TASK2_BLK_RESULT_STEP2 350
 #define True 1
 #define False 0
 struct Blk_ptr{
@@ -408,7 +408,7 @@ int tpmms(int start,int end){
 
 int main(){
     // LinerSearch(50);
-    tpmms(R_START,R_END);
+    // tpmms(S_START,S_END);
 
     return 0;
 }
