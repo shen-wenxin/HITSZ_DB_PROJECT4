@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "extmem.h"
 #include <string.h>
+#define TPMMS_STEP1_ELE_GROUT 7 //每一路里头的blk个数
 #define TUPLE_NUM_IN_BLK 7 //一个blk里头tuple的个数
 #define TUPLE_ELE_NUM 7
 #define BLK_NUM_IN_BUFFER 8 //一个buffer里头blk的个数
@@ -11,10 +12,16 @@
 #define S_START 17
 #define S_END 48
 #define TASK1_BLK_RESULT 100
-#define TASK2_BLK_RESULT 200
+#define TASK2_BLK_RESULT_STEP1 200
+#define TASK2_BLK_RESULT_STEP2 250
 #define True 1
 #define False 0
-
+struct Blk_ptr{
+        int start;
+        int end;
+        int now;
+        int next;
+};
 struct Tuple{
     int X;
     int Y;
@@ -109,7 +116,7 @@ int cmpTule(const void *p1, const void *p2){
 
 }
 
-void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1], Buffer buf,struct Tuple *tuple,int pos,int buffer_blk_num){
+void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1], Buffer *buf,struct Tuple *tuple,int pos,int buffer_blk_num){
     int minn_x = 9999,minn_Y = 9999;
     int s = -1;//表示其在第几块
     for(int i = 0;i < buffer_blk_num;i ++){
@@ -135,7 +142,7 @@ void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER 
             s = i;
         }
     }
-    printf("minn = %d,s = %d\n",minn_x,s);
+    printf("minn_x = %d,minn_y = %d,s = %d\n",minn_x,minn_Y,s);
     blk_read_num[s]  = blk_read_num[s] + 1;
     unsigned char *  ptr = blk_r_ptr[s];
     blk_r_ptr[s] = ptr + 8;
@@ -145,7 +152,7 @@ void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER 
 }
 
 
-int isNotFinist(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
+int isNotFinish(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
     for(int i = 0;i < buffer_blk_num;i ++){
         if(blk_read_num[i] < TUPLE_NUM_IN_BLK){
             return True;
@@ -155,6 +162,7 @@ int isNotFinist(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
 }
 
 int writeTuple2Dist(struct Tuple *tuple,int blk_id,Buffer *buf){
+    printf("writeTuple2Dist\n");
     unsigned char *blk_w;   //用于写
     blk_w = getNewBlockInBuffer(buf); 
     unsigned char str_blk_w_id[4];
@@ -184,14 +192,7 @@ int writeTuple2Dist(struct Tuple *tuple,int blk_id,Buffer *buf){
     printf("结果写入磁盘:%d\n",blk_id);
 
 }
-int tpmms_step1(int start,int end,int rid_s,int *rid_e){
-    //tpmms第一阶段：先将每个blk的数据读出来，按照第一个属性排序
-    Buffer buf; 
-    if (!initBuffer(520, 64, &buf)){
-        perror("Buffer Initialization Failed!\n");
-        return -1;
-    }
-
+int tpmms_step1(int start,int end,int rid_s,int *rid_e, Buffer *buf){
     unsigned char *blk_r[BLK_NUM_IN_BUFFER - 1];   //用于读
     unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1];//读的首地址指针
     int blk_read_num[BLK_NUM_IN_BUFFER - 1];
@@ -200,8 +201,8 @@ int tpmms_step1(int start,int end,int rid_s,int *rid_e){
     for(int blk_id = start;blk_id <= end ;){
         if(buffer_blk_num < BLK_NUM_IN_BUFFER - 1){
             //要留一个blk的位置来写，先将东西读到buffer中
-            printf("write to bffer:blk_id = %d\n",blk_id);
-            blk_r[buffer_blk_num]=readBlockFromDisk(blk_id, &buf);
+            // printf("write to bffer:blk_id = %d\n",blk_id);
+            blk_r[buffer_blk_num]=readBlockFromDisk(blk_id, buf);
             blk_r_ptr[buffer_blk_num] = blk_r[buffer_blk_num];
             blk_read_num[buffer_blk_num] = 0;
             buffer_blk_num ++;
@@ -247,18 +248,18 @@ int tpmms_step1(int start,int end,int rid_s,int *rid_e){
             struct Tuple tuple[TUPLE_ELE_NUM];
             int tup_pos = 0;
             //一边排序一边将排序好的Blk写入磁盘中
-            while(isNotFinist(blk_read_num,buffer_blk_num)){
+            while(isNotFinish(blk_read_num,buffer_blk_num)){
                 get_min_data(blk_read_num,blk_r_ptr,buf,tuple,tup_pos,buffer_blk_num);
                 tup_pos ++;
                 if(tup_pos == TUPLE_ELE_NUM){
-                    for(int i = 0;i < TUPLE_ELE_NUM;i ++){
-                        printf("blk_read_num[%d] = %d\n",i,blk_read_num[i]);
-                    }
-                    for(int i = 0;i < TUPLE_ELE_NUM;i ++){
-                        printf("(%d,%d)\n",tuple[i].X,tuple[i].Y);
-                    }
+                    // for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                    //     printf("blk_read_num[%d] = %d\n",i,blk_read_num[i]);
+                    // }
+                    // for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                    //     printf("(%d,%d)\n",tuple[i].X,tuple[i].Y);
+                    // }
                     //  将一个排满的tuple写到外存中
-                    writeTuple2Dist(tuple,result_blk_id,&buf);   
+                    writeTuple2Dist(tuple,result_blk_id,buf);   
                     result_blk_id ++;
                     tup_pos = 0;
                     memset(tuple,0,sizeof(0));
@@ -266,7 +267,7 @@ int tpmms_step1(int start,int end,int rid_s,int *rid_e){
             }
             //处理完这一波之后，释放对buffer的占用，将buffer里头的内容清空
             for(int t = 0;t < buffer_blk_num;t ++){
-                freeBlockInBuffer(blk_r[t],&buf);
+                freeBlockInBuffer(blk_r[t],buf);
                 memset(blk_r[t],0,64);
             }
             buffer_blk_num = 0;
@@ -276,26 +277,138 @@ int tpmms_step1(int start,int end,int rid_s,int *rid_e){
     return 0;
 
 }
+int initBlkPrt(int groupnum,int start,int end,struct Blk_ptr *blk_ptr){
+    for(int i = 0;i < groupnum;i ++){
+        blk_ptr[i].start = start + i * TPMMS_STEP1_ELE_GROUT;
+        blk_ptr[i].end = blk_ptr[i].start + TPMMS_STEP1_ELE_GROUT - 1;
+        if(blk_ptr[i].end > end)
+            blk_ptr[i].end = end;
+        blk_ptr[i].now = -1;
+        blk_ptr[i].next = blk_ptr[i].start;
+    }
+}
+int hasBlkInDisk(struct Blk_ptr *blk_ptr,int groupnum ){
+    //检测dist是否还有blk没有读进来
+    // printf("-----begin:hasBlkInDisk-----\n");
+    for(int i = 0;i < groupnum;i ++){
+        printf("blk_ptr[%d]:",i);
+        printf("now = %d,next = %d, end = %d\n",blk_ptr[i].now,blk_ptr[i].next,blk_ptr[i].end);
 
-int tpmms_step2(int start,int end){
+    }
+    for(int i = 0;i < groupnum;i ++){
+        if(blk_ptr[i].now < blk_ptr[i].end){
+            //还有块没读
+            return True;
+        }
+    }
+    return False;
+}
+int hasTupleInBlk(int * tulpe_read_num, int groupnum,struct Blk_ptr *blk_ptr){
+    for(int i = 0;i < groupnum;i ++){
+        if (tulpe_read_num[i] >= TUPLE_NUM_IN_BLK){
+            if(blk_ptr[i].now < blk_ptr[i].end){
+                return False;
+            }
+        }
+    }
+    return True;
+}
+void updataBlkInBuffer(int groupnum,int *tulpe_read_num,struct Blk_ptr *blk_ptr,Buffer *buf,unsigned char *blk_ptr_bffer[BLK_NUM_IN_BUFFER] ){
+    for(int i = 0;i < groupnum;i ++){
+        if((tulpe_read_num[i] == TUPLE_NUM_IN_BLK)&&(blk_ptr[i].next < blk_ptr[i].end)){
+            blk_ptr[i].next ++;
+            freeBlockInBuffer(blk_ptr_bffer[i],buf);
+            memset(blk_ptr_bffer[i],0,sizeof(64));
+        }
+    }
+}
+int updateStopFlag( struct Blk_ptr *blk_ptr,int groupnum, int * tulpe_read_num){
+    int stop_flag=False;
+    for(int i = 0;i < groupnum;i ++){
+        if(blk_ptr[i].now < blk_ptr[i].end){
+            return False;
+        }
+        if(tulpe_read_num[i] < TUPLE_NUM_IN_BLK){
+            return False;
+        }
+    }
+    return True;
+}
+int tpmms_step2(int start,int end,Buffer *buf,int rid_s_2 , int *rid_e_2){
     //先统计结果中一共有多少个blk文件
     int num = end - start + 1;
-    printf("num = %d\n",num);
+    int result_blk_id = rid_s_2;
+    int groupnum = (num % TPMMS_STEP1_ELE_GROUT) == 0?
+                    (num / TPMMS_STEP1_ELE_GROUT):
+                    (num / TPMMS_STEP1_ELE_GROUT + 1);
+    struct Blk_ptr blk_ptr[groupnum];//指向内存块的每个block
+    initBlkPrt(groupnum,start,end,blk_ptr);
+    unsigned char * blk_ptr_bffer[groupnum];
+    unsigned char * tuple_ptr_blk[TUPLE_NUM_IN_BLK];//记录buffer中的blk的tuple
+    int tulpe_read_num[TUPLE_ELE_NUM];
+    struct Tuple tuple[TUPLE_ELE_NUM];
+    int tup_pos = 0;
+    int stop_flag = 0;
+    while(hasBlkInDisk(blk_ptr,groupnum)){
+        //更新每一路
+        for(int i = 0;i < groupnum;i ++){
+            printf("%d:start:%d,end:%d,now:%d,next:%d\n",i,blk_ptr[i].start,blk_ptr[i].end,blk_ptr[i].now,blk_ptr[i].next);
+            if(blk_ptr[i].now != blk_ptr[i].next){
+                    printf("upload blk:%d\n",blk_ptr[i].next);
+                    unsigned char * pptr = readBlockFromDisk(blk_ptr[i].next, buf);;
+                    blk_ptr_bffer[i] = pptr;
+                    blk_ptr[i].now = blk_ptr[i].next;
+                    tuple_ptr_blk[i] = blk_ptr_bffer[i];
+                    tulpe_read_num[i] = 0;
+            }
+        }
+        //对着groupnum路开始归并排序
+
+        while(hasTupleInBlk(tulpe_read_num,groupnum,blk_ptr)){
+            
+            get_min_data(tulpe_read_num,tuple_ptr_blk,buf,tuple,tup_pos,groupnum);
+            tup_pos ++;
+            if(tup_pos == TUPLE_ELE_NUM){
+                for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                    printf("blk_read_num[%d] = %d\n",i,tulpe_read_num[i]);
+                }
+                for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                    printf("(%d,%d)\n",tuple[i].X,tuple[i].Y);
+                }
+                //  将一个排满的tuple写到外存中
+                printf("writeTuple2Dist\n");
+                writeTuple2Dist(tuple,result_blk_id,buf); 
+                stop_flag = updateStopFlag(blk_ptr,groupnum, tulpe_read_num);
+                if(stop_flag)   return 0;
+                result_blk_id ++;
+                tup_pos = 0;
+                memset(tuple,0,sizeof(0));
+            }
+        }
+        updataBlkInBuffer(groupnum,tulpe_read_num,blk_ptr,buf,blk_ptr_bffer);
+    }
+    return 0;
 
 }
 int tpmms(int start,int end){
-    int rid_s = TASK2_BLK_RESULT,rid_e = TASK2_BLK_RESULT;//step1 的结果存储的id的起始地址
+    Buffer buf; 
+    if (!initBuffer(520, 64, &buf)){
+        perror("Buffer Initialization Failed!\n");
+        return -1;
+    }
+    int rid_s = TASK2_BLK_RESULT_STEP1,rid_e = TASK2_BLK_RESULT_STEP1;//step1 的结果存储的id的起始地址
     //第一阶段，按照每组7个的大小，将其读入buffer中，进行排序后写入结果中
-    tpmms_step1(start,end,rid_s,&rid_e);
+    tpmms_step1(start,end,rid_s,&rid_e,&buf);
     //第二阶段：将上一阶段的结果继续归并排序
     printf("\n--------------------------------------------\n-----------------step2---------------\n");
-    tpmms_step2(rid_s,rid_e);
+    int rid_s_2 = TASK2_BLK_RESULT_STEP2, rid_e_2 = TASK2_BLK_RESULT_STEP2;
+    tpmms_step2(rid_s,rid_e,&buf,rid_s_2,&rid_e_2);
 
 }
 
 int main(){
-   // LinerSearch(50);
-   tpmms(R_START,R_END);
+    // LinerSearch(50);
+    tpmms(R_START,R_END);
 
     return 0;
 }
