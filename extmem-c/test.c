@@ -44,7 +44,9 @@ int main(int argc, char **argv)
     //     freeBlockInBuffer(blk, &buf);
         
     // }
-     if ((blk = readBlockFromDisk(3, &buf)) == NULL){
+    for(int id = 200;id <= 206;id ++){
+        printf("\nblock id = %d\n",id);
+        if ((blk = readBlockFromDisk(id, &buf)) == NULL){
             perror("Reading Block Failed!\n");
             return -1;
         }
@@ -66,6 +68,9 @@ int main(int argc, char **argv)
             str[k] = *(blk + i*8 + k);
         }
         addr = atoi(str);
+
+    }
+     
     return 0;
 }
 
