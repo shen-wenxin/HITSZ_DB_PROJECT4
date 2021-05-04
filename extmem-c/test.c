@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     //     freeBlockInBuffer(blk, &buf);
         
     // }
-    for(int tt = 350;tt <=381;tt ++ ){
+    for(int tt = 450;tt <=451;tt ++ ){
         printf("\nblock:%d",tt);
         if ((blk = readBlockFromDisk(tt, &buf)) == NULL){
             perror("Reading Block Failed!\n");

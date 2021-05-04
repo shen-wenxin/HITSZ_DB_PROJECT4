@@ -14,6 +14,11 @@
 #define TASK1_BLK_RESULT 100
 #define TASK2_BLK_RESULT_STEP1 300
 #define TASK2_BLK_RESULT_STEP2 350
+#define TASK3_INDEX_S_START 400 //task3中索引表的起始位置
+#define TASK3_S_RESULT 450      //task3中表R的结果的位置,450,451
+
+
+
 #define True 1
 #define False 0
 struct Blk_ptr{
@@ -35,7 +40,6 @@ void int2str(unsigned char *dst, int a) {
         base /= 10;
     }
 }
-
 int LinerSearch(int key){
     //任务一：基于线性搜索的关系选择算法，实现线性搜索(S.C,S.D)where S.C = 50
     printf("--------------------\n");
@@ -108,14 +112,12 @@ int LinerSearch(int key){
 
     return 0;
 }
-
 int cmpTule(const void *p1, const void *p2){
     struct Tuple t1 = *(struct Tuple *)p1;
     struct Tuple t2 = *(struct Tuple *)p2;
     return t1.X - t2.X;
 
 }
-
 void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1], Buffer *buf,struct Tuple *tuple,int pos,int buffer_blk_num){
     int minn_x = 9999,minn_Y = 9999;
     int s = -1;//表示其在第几块
@@ -150,8 +152,6 @@ void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER 
     tuple[pos].Y = minn_Y;
     
 }
-
-
 int isNotFinish(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
     for(int i = 0;i < buffer_blk_num;i ++){
         if(blk_read_num[i] < TUPLE_NUM_IN_BLK){
@@ -160,7 +160,6 @@ int isNotFinish(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
     }
     return False;
 }
-
 int writeTuple2Dist(struct Tuple *tuple,int blk_id,Buffer *buf){
     printf("writeTuple2Dist\n");
     unsigned char *blk_w;   //用于写
@@ -379,7 +378,10 @@ int tpmms_step2(int start,int end,Buffer *buf,int rid_s_2 , int *rid_e_2){
                 printf("writeTuple2Dist\n");
                 writeTuple2Dist(tuple,result_blk_id,buf); 
                 stop_flag = updateStopFlag(blk_ptr,groupnum, tulpe_read_num);
-                if(stop_flag)   return 0;
+                if(stop_flag){
+                    *(rid_e_2) = (result_blk_id - 1);
+                    return 0;
+                }   
                 result_blk_id ++;
                 tup_pos = 0;
                 memset(tuple,0,sizeof(0));
@@ -405,10 +407,150 @@ int tpmms(int start,int end){
     tpmms_step2(rid_s,rid_e,&buf,rid_s_2,&rid_e_2);
 
 }
+void get_blk_first_tuple(unsigned char * ptr,struct Tuple *tuple,int tup_pos,int blk_id){
+    int X = -1,Y = -1;
+    char str[5];
+    for (int k = 0; k < 4; k++){
+        str[k] = *(ptr  + k);
+    }
+    X = atoi(str);
+    for (int k = 0; k < 4; k++){
+        str[k] = *(ptr + 4 + k);
+    }
+    Y = atoi(str);
+    tuple[tup_pos].X = X;
+    tuple[tup_pos].Y = blk_id;
+    
+
+}
+void create_index(int start,int end,int rid_s,int *rid_e,Buffer *buf){
+    struct Tuple tuple[TUPLE_ELE_NUM];
+    int tup_pos = 0; 
+    int result_blk_id = rid_s;
+    for(int blk_id = start;blk_id <= end;blk_id ++){
+        unsigned char * ptr = readBlockFromDisk(blk_id,buf);
+        
+        //得到这个Blk的第一个tuple的值
+        get_blk_first_tuple(ptr,tuple,tup_pos,blk_id);
+        freeBlockInBuffer(ptr,buf);
+        tup_pos ++;
+        if((tup_pos == TUPLE_NUM_IN_BLK) || (blk_id == end)){
+            //将其写道那个里头去
+            writeTuple2Dist(tuple,result_blk_id,buf);
+            tup_pos = 0;
+            memset(tuple,0,sizeof(tuple));
+            result_blk_id ++;
+        }
+    }
+    *(rid_e) = (result_blk_id - 1);
+
+}
+int get_large_blk_id(unsigned char * ptr,int key){
+    int pre = -1;
+    int C = -1,D = -1,addr = -1;
+    char str[5]; 
+    for (int i = 0; i < 7; i++){
+        for (int k = 0; k < 4; k++){
+            str[k] = *(ptr + i*8 + k);
+        }
+        C = atoi(str);
+        for (int k = 0; k < 4; k++){
+            str[k] = *(ptr + i*8 + 4 + k);
+        }
+        D = atoi(str);
+        printf("(%d %d)",C,D);
+        if(C >= key){
+            //返回一个id值比它小的value的值
+            for (int k = 0; k < 4; k++){
+                str[k] = *(ptr + (i-1)*8 + 4 + k);
+            }
+            D = atoi(str);
+            return D;
+        }
+    }
+    return -1;
+}
+int select_with_index(int start,int end,int rid_s,int * rid_e, Buffer * buf,int key,int s_end){
+    printf("------------------get here-------------\n");
+    struct Tuple tuple[TUPLE_ELE_NUM];
+    int tup_pos = 0;
+    int result_blk_id = rid_s;
+    for(int blk_id = start;blk_id <= end;blk_id ++){
+        unsigned char * ptr = readBlockFromDisk(blk_id,buf);
+        int id = get_large_blk_id(ptr, key);
+        if(id != -1){
+            printf("\nid = %d\n",id);
+            freeBlockInBuffer(ptr,buf);
+            memset(ptr,0,sizeof(ptr));
+            //得到id值之后
+            for(int sid = id;sid < s_end;sid ++){
+                printf("\nread block = %d\n",sid);
+                ptr = readBlockFromDisk(sid,buf);
+                int C = -1,D = -1;
+                char str[5]; 
+                for (int i = 0; i < 7; i++){
+                    for (int k = 0; k < 4; k++){
+                        str[k] = *(ptr + i*8 + k);
+                    }
+                    C = atoi(str);
+                    for (int k = 0; k < 4; k++){
+                        str[k] = *(ptr + i*8 + 4 + k);
+                    }
+                    D = atoi(str);
+                    printf("(%d %d)",C,D);
+                    if(C == key){
+                        tuple[tup_pos].X = C;
+                        tuple[tup_pos].Y = D;
+                        printf("\ntuple[%d] :(%d,%d)\n",tup_pos,tuple[tup_pos].X,tuple[tup_pos].Y);
+                        tup_pos ++;
+                        if(tup_pos == 7){
+                            writeTuple2Dist(tuple,result_blk_id,buf);
+                            result_blk_id ++;
+                            tup_pos = 0;
+                            memset(tuple,0,sizeof(tuple));
+                        }
+                    }
+                    if(C> key){
+                        writeTuple2Dist(tuple,result_blk_id,buf);
+                        result_blk_id ++;
+                        tup_pos = 0;
+                        memset(tuple,0,sizeof(tuple));
+                        return 0;
+
+                    }
+                }
+            }
+            return 0;
+        }
+        else{
+            freeBlockInBuffer(ptr,buf);
+            memset(ptr,0,sizeof(ptr));
+        }
+
+    }
+
+}
+int select_by_index(int start,int end){
+    Buffer buf; 
+    if (!initBuffer(520, 64, &buf)){
+        perror("Buffer Initialization Failed!\n");
+        return -1;
+    }
+    int rid_s = TASK3_INDEX_S_START,rid_e = TASK3_INDEX_S_START;
+    create_index(start,end,rid_s,&rid_e,&buf);
+    int rid_s_2 = TASK3_S_RESULT,rid_e_2 = TASK3_S_RESULT;
+    select_with_index(rid_s,rid_e,rid_s_2,&rid_e_2,&buf,50,381);
+}
 
 int main(){
+    // task1
     // LinerSearch(50);
+    // task2
     // tpmms(S_START,S_END);
+    // task3
+    // select_by_index(350,381);//task2中2表的数据存在250~265的部分
+    // task4
+    Sort_Merge_Join()
 
     return 0;
 }
