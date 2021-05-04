@@ -109,10 +109,10 @@ int cmpTule(const void *p1, const void *p2){
 
 }
 
-void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1], Buffer buf,struct Tuple *tuple,int pos){
+void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1], Buffer buf,struct Tuple *tuple,int pos,int buffer_blk_num){
     int minn_x = 9999,minn_Y = 9999;
     int s = -1;//表示其在第几块
-    for(int i = 0;i < BLK_NUM_IN_BUFFER - 1;i ++){
+    for(int i = 0;i < buffer_blk_num;i ++){
         if(blk_read_num[i] == 7){
             continue;//这个列已经被读完了
         }
@@ -145,8 +145,8 @@ void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER 
 }
 
 
-int isNotFinist(int blk_read_num[BLK_NUM_IN_BUFFER - 1]){
-    for(int i = 0;i < BLK_NUM_IN_BUFFER - 1;i ++){
+int isNotFinist(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
+    for(int i = 0;i < buffer_blk_num;i ++){
         if(blk_read_num[i] < TUPLE_NUM_IN_BLK){
             return True;
         }
@@ -199,6 +199,7 @@ int tpmms_step1(int start,int end){
     for(int blk_id = start;blk_id <= end ;){
         if(buffer_blk_num < BLK_NUM_IN_BUFFER - 1){
             //要留一个blk的位置来写，先将东西读到buffer中
+            printf("write to bffer:blk_id = %d\n",blk_id);
             blk_r[buffer_blk_num]=readBlockFromDisk(blk_id, &buf);
             blk_r_ptr[buffer_blk_num] = blk_r[buffer_blk_num];
             blk_read_num[buffer_blk_num] = 0;
@@ -206,7 +207,7 @@ int tpmms_step1(int start,int end){
             blk_id ++;
              
         }
-        else{
+        if((buffer_blk_num == BLK_NUM_IN_BUFFER - 1) || (blk_id > end)){
             //将buffer里头的内容变为以blk为单位的有序，升序排序，最小的在最前面
             for(int t = 0;t < buffer_blk_num;t ++){
                 unsigned char *blk_r_temp = blk_r[t];
@@ -226,6 +227,7 @@ int tpmms_step1(int start,int end){
                     tuple[i].X = X;
                     tuple[i].Y = Y;
                 }
+                //对每一个blk排序
                 qsort(tuple,TUPLE_NUM_IN_BLK,sizeof(struct Tuple), cmpTule);
                 //将排好序的写回到buffer中
                 for(int i = 0;i < TUPLE_NUM_IN_BLK;i ++){
@@ -239,12 +241,13 @@ int tpmms_step1(int start,int end){
                     }
                 }
             }
+
             //开始第一轮归并排序
             struct Tuple tuple[TUPLE_ELE_NUM];
             int tup_pos = 0;
             //一边排序一边将排序好的Blk写入磁盘中
-            while(isNotFinist(blk_read_num)){
-                get_min_data(blk_read_num,blk_r_ptr,buf,tuple,tup_pos);
+            while(isNotFinist(blk_read_num,buffer_blk_num)){
+                get_min_data(blk_read_num,blk_r_ptr,buf,tuple,tup_pos,buffer_blk_num);
                 tup_pos ++;
                 if(tup_pos == TUPLE_ELE_NUM){
                     for(int i = 0;i < TUPLE_ELE_NUM;i ++){
@@ -265,15 +268,8 @@ int tpmms_step1(int start,int end){
                 freeBlockInBuffer(blk_r[t],&buf);
             }
             buffer_blk_num = 0;
-            return 0;
         }
     }
-
-    
-        
-    
-    
-
     return 0;
 
 }
