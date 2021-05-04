@@ -180,10 +180,11 @@ int writeTuple2Dist(struct Tuple *tuple,int blk_id,Buffer *buf){
         return -1;
     }
     freeBlockInBuffer(blk_w, buf);
+    memset(blk_w,0,64);
     printf("结果写入磁盘:%d\n",blk_id);
 
 }
-int tpmms_step1(int start,int end){
+int tpmms_step1(int start,int end,int rid_s,int *rid_e){
     //tpmms第一阶段：先将每个blk的数据读出来，按照第一个属性排序
     Buffer buf; 
     if (!initBuffer(520, 64, &buf)){
@@ -195,7 +196,7 @@ int tpmms_step1(int start,int end){
     unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER - 1];//读的首地址指针
     int blk_read_num[BLK_NUM_IN_BUFFER - 1];
     int buffer_blk_num = 0; //   用来记录buffler中blk的数量
-    int result_blk_id = TASK2_BLK_RESULT;
+    int result_blk_id = rid_s;
     for(int blk_id = start;blk_id <= end ;){
         if(buffer_blk_num < BLK_NUM_IN_BUFFER - 1){
             //要留一个blk的位置来写，先将东西读到buffer中
@@ -266,15 +267,29 @@ int tpmms_step1(int start,int end){
             //处理完这一波之后，释放对buffer的占用，将buffer里头的内容清空
             for(int t = 0;t < buffer_blk_num;t ++){
                 freeBlockInBuffer(blk_r[t],&buf);
+                memset(blk_r[t],0,64);
             }
             buffer_blk_num = 0;
         }
     }
+    *(rid_e) = (result_blk_id - 1);
     return 0;
 
 }
+
+int tpmms_step2(int start,int end){
+    //先统计结果中一共有多少个blk文件
+    int num = end - start + 1;
+    printf("num = %d\n",num);
+
+}
 int tpmms(int start,int end){
-    tpmms_step1(start,end);
+    int rid_s = TASK2_BLK_RESULT,rid_e = TASK2_BLK_RESULT;//step1 的结果存储的id的起始地址
+    //第一阶段，按照每组7个的大小，将其读入buffer中，进行排序后写入结果中
+    tpmms_step1(start,end,rid_s,&rid_e);
+    //第二阶段：将上一阶段的结果继续归并排序
+    printf("\n--------------------------------------------\n-----------------step2---------------\n");
+    tpmms_step2(rid_s,rid_e);
 
 }
 
