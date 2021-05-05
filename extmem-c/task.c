@@ -12,8 +12,10 @@
 #define S_START 17
 #define S_END 48
 #define TASK1_BLK_RESULT 100
-#define TASK2_BLK_RESULT_STEP1 300
-#define TASK2_BLK_RESULT_STEP2 350
+#define TASK2_BLK_RESULT_STEP1_R 200
+#define TASK2_BLK_RESULT_STEP2_R 250
+#define TASK2_BLK_RESULT_STEP1_S 300
+#define TASK2_BLK_RESULT_STEP2_S 350
 #define TASK3_INDEX_S_START 400 //task3中索引表的起始位置
 #define TASK3_S_RESULT 450      //task3中表R的结果的位置,450,451
 #define TASK4_RESULT 500
@@ -57,6 +59,7 @@ int LinerSearch(int key){
     int blk_w_num = 0;  //统计写的blk中有几个，有7个之后就要写到外存中
     int blk_w_id = TASK1_BLK_RESULT;
     int i = 0;
+    int tuple_num = 0;
     if (!initBuffer(520, 64, &buf)){
         perror("Buffer Initialization Failed!\n");
         return -1;
@@ -83,7 +86,8 @@ int LinerSearch(int key){
             D = atoi(str);
             if(C == 50  || (blk_id == S_END && i == 6)){
                 if(C == 50){
-                    printf("C = %d,D = %d\n",C,D);
+                    tuple_num ++;
+                    printf("(C = %d,D = %d)\n",C,D);
                     for (int k = 0;k < 8;k ++){
                         *(blk_w + blk_w_num * 8 + k) = *(blk + i*8 + k);
                     }
@@ -115,6 +119,8 @@ int LinerSearch(int key){
         
     }
     
+    printf("\n满足条件的元组一共 %d 个\n",tuple_num);
+    printf("IO's is %d\n", buf.numIO); /* Check the number of IO's */
 
     return 0;
 }
@@ -150,7 +156,7 @@ void get_min_data(int *blk_read_num, unsigned char *blk_r_ptr[BLK_NUM_IN_BUFFER 
             s = i;
         }
     }
-    printf("minn_x = %d,minn_y = %d,s = %d\n",minn_x,minn_Y,s);
+    // printf("minn_x = %d,minn_y = %d,s = %d\n",minn_x,minn_Y,s);
     blk_read_num[s]  = blk_read_num[s] + 1;
     unsigned char *  ptr = blk_r_ptr[s];
     blk_r_ptr[s] = ptr + 8;
@@ -167,15 +173,14 @@ int isNotFinish(int blk_read_num[BLK_NUM_IN_BUFFER - 1],int buffer_blk_num){
     return False;
 }
 int writeTuple2Dist(struct Tuple *tuple,int blk_id,Buffer *buf){
-    printf("writeTuple2Dist\n");
+    // printf("writeTuple2Dist\n");
     unsigned char *blk_w;   //用于写
     blk_w = getNewBlockInBuffer(buf); 
     unsigned char str_blk_w_id[4];
     int2str(str_blk_w_id, blk_id + 1);//下一个地址
-    for(int i = 0;i < TUPLE_ELE_NUM;i ++){
-        printf("(%d,%d)",tuple[i].X,tuple[i].Y);
-    }
-    printf("\n");
+    // for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+    //     printf("(%d,%d)",tuple[i].X,tuple[i].Y);
+    // }
     for(int i = 0;i < TUPLE_ELE_NUM;i ++){
         unsigned char str1[4];
         unsigned char str2[4];
@@ -300,11 +305,6 @@ int hasBlkInDisk(struct Blk_ptr *blk_ptr,int groupnum ){
     //检测dist是否还有blk没有读进来
     // printf("-----begin:hasBlkInDisk-----\n");
     for(int i = 0;i < groupnum;i ++){
-        printf("blk_ptr[%d]:",i);
-        printf("now = %d,next = %d, end = %d\n",blk_ptr[i].now,blk_ptr[i].next,blk_ptr[i].end);
-
-    }
-    for(int i = 0;i < groupnum;i ++){
         if(blk_ptr[i].now < blk_ptr[i].end){
             //还有块没读
             return True;
@@ -361,9 +361,9 @@ int tpmms_step2(int start,int end,Buffer *buf,int rid_s_2 , int *rid_e_2){
     while(hasBlkInDisk(blk_ptr,groupnum)){
         //更新每一路
         for(int i = 0;i < groupnum;i ++){
-            printf("%d:start:%d,end:%d,now:%d,next:%d\n",i,blk_ptr[i].start,blk_ptr[i].end,blk_ptr[i].now,blk_ptr[i].next);
+            // printf("%d:start:%d,end:%d,now:%d,next:%d\n",i,blk_ptr[i].start,blk_ptr[i].end,blk_ptr[i].now,blk_ptr[i].next);
             if(blk_ptr[i].now != blk_ptr[i].next){
-                    printf("upload blk:%d\n",blk_ptr[i].next);
+                    printf("读入块:%d\n",blk_ptr[i].next);
                     unsigned char * pptr = readBlockFromDisk(blk_ptr[i].next, buf);;
                     blk_ptr_bffer[i] = pptr;
                     blk_ptr[i].now = blk_ptr[i].next;
@@ -378,14 +378,14 @@ int tpmms_step2(int start,int end,Buffer *buf,int rid_s_2 , int *rid_e_2){
             get_min_data(tulpe_read_num,tuple_ptr_blk,buf,tuple,tup_pos,groupnum);
             tup_pos ++;
             if(tup_pos == TUPLE_ELE_NUM){
-                for(int i = 0;i < TUPLE_ELE_NUM;i ++){
-                    printf("blk_read_num[%d] = %d\n",i,tulpe_read_num[i]);
-                }
-                for(int i = 0;i < TUPLE_ELE_NUM;i ++){
-                    printf("(%d,%d)\n",tuple[i].X,tuple[i].Y);
-                }
+                // for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                    // printf("blk_read_num[%d] = %d\n",i,tulpe_read_num[i]);
+                // }
+                // for(int i = 0;i < TUPLE_ELE_NUM;i ++){
+                //     printf("(%d,%d)\n",tuple[i].X,tuple[i].Y);
+                // }
                 //  将一个排满的tuple写到外存中
-                printf("writeTuple2Dist\n");
+                // printf("writeTuple2Dist\n");
                 writeTuple2Dist(tuple,result_blk_id,buf); 
                 stop_flag = updateStopFlag(blk_ptr,groupnum, tulpe_read_num);
                 if(stop_flag){
@@ -408,12 +408,9 @@ int tpmms(int start,int end){
         perror("Buffer Initialization Failed!\n");
         return -1;
     }
-    int rid_s = TASK2_BLK_RESULT_STEP1,rid_e = TASK2_BLK_RESULT_STEP1;//step1 的结果存储的id的起始地址
-    //第一阶段，按照每组7个的大小，将其读入buffer中，进行排序后写入结果中
+    int rid_s = TASK2_BLK_RESULT_STEP1_S,rid_e = TASK2_BLK_RESULT_STEP1_S;//step1 的结果存储的id的起始地址
     tpmms_step1(start,end,rid_s,&rid_e,&buf);
-    //第二阶段：将上一阶段的结果继续归并排序
-    printf("\n--------------------------------------------\n-----------------step2---------------\n");
-    int rid_s_2 = TASK2_BLK_RESULT_STEP2, rid_e_2 = TASK2_BLK_RESULT_STEP2;
+    int rid_s_2 = TASK2_BLK_RESULT_STEP2_S, rid_e_2 = TASK2_BLK_RESULT_STEP2_S;
     tpmms_step2(rid_s,rid_e,&buf,rid_s_2,&rid_e_2);
 
 }
@@ -468,7 +465,7 @@ int get_large_blk_id(unsigned char * ptr,int key){
             str[k] = *(ptr + i*8 + 4 + k);
         }
         D = atoi(str);
-        printf("(%d %d)",C,D);
+        // printf("(%d %d)",C,D);
         if(C >= key){
             //返回一个id值比它小的value的值
             for (int k = 0; k < 4; k++){
@@ -481,20 +478,19 @@ int get_large_blk_id(unsigned char * ptr,int key){
     return -1;
 }
 int select_with_index(int start,int end,int rid_s,int * rid_e, Buffer * buf,int key,int s_end){
-    printf("------------------get here-------------\n");
     struct Tuple tuple[TUPLE_ELE_NUM];
     int tup_pos = 0;
     int result_blk_id = rid_s;
     for(int blk_id = start;blk_id <= end;blk_id ++){
+        printf("读入索引块%d\n",blk_id);
         unsigned char * ptr = readBlockFromDisk(blk_id,buf);
         int id = get_large_blk_id(ptr, key);
         if(id != -1){
-            printf("\nid = %d\n",id);
             freeBlockInBuffer(ptr,buf);
             memset(ptr,0,sizeof(ptr));
             //得到id值之后
             for(int sid = id;sid < s_end;sid ++){
-                printf("\nread block = %d\n",sid);
+                printf("读入数据块%d\n",sid);
                 ptr = readBlockFromDisk(sid,buf);
                 int C = -1,D = -1;
                 char str[5]; 
@@ -507,11 +503,10 @@ int select_with_index(int start,int end,int rid_s,int * rid_e, Buffer * buf,int 
                         str[k] = *(ptr + i*8 + 4 + k);
                     }
                     D = atoi(str);
-                    printf("(%d %d)",C,D);
                     if(C == key){
                         tuple[tup_pos].X = C;
                         tuple[tup_pos].Y = D;
-                        printf("\ntuple[%d] :(%d,%d)\n",tup_pos,tuple[tup_pos].X,tuple[tup_pos].Y);
+                        printf("(C = %d,D = %d)\n",C,D);
                         tup_pos ++;
                         if(tup_pos == 7){
                             writeTuple2Dist(tuple,result_blk_id,buf);
@@ -533,6 +528,7 @@ int select_with_index(int start,int end,int rid_s,int * rid_e, Buffer * buf,int 
             return 0;
         }
         else{
+            printf("没有满足条件的元组\n");
             freeBlockInBuffer(ptr,buf);
             memset(ptr,0,sizeof(ptr));
         }
@@ -547,9 +543,16 @@ int select_by_index(int start,int end){
         return -1;
     }
     int rid_s = TASK3_INDEX_S_START,rid_e = TASK3_INDEX_S_START;
+    printf("----------create index begin---------------\n");
     create_index(start,end,rid_s,&rid_e,&buf);
+    printf("---------------index created---------------\n");
+    printf("-------------------------------------------\n");
+    printf(           "基于索引的选择算法排序\n");
+    printf("-------------------------------------------\n");
+    int io_nums = buf.numIO;
     int rid_s_2 = TASK3_S_RESULT,rid_e_2 = TASK3_S_RESULT;
     select_with_index(rid_s,rid_e,rid_s_2,&rid_e_2,&buf,50,381);
+    printf("IO's is %d\n", (buf.numIO - io_nums)); /* Check the number of IO's */
 }
 int get_tuple_num(unsigned char * ptr,int i,int *X,int *Y){
     char str[5];
@@ -564,6 +567,9 @@ int get_tuple_num(unsigned char * ptr,int i,int *X,int *Y){
 }
 
 int Sort_Merge_Join(int R_start,int R_end,int S_start,int S_end){
+    printf("----------------\n");
+    printf("基于排序的连接算法\n");
+    printf("----------------\n");
     Buffer buf; 
     if (!initBuffer(520, 64, &buf)){
         perror("Buffer Initialization Failed!\n");
@@ -587,9 +593,9 @@ int Sort_Merge_Join(int R_start,int R_end,int S_start,int S_end){
             //得到S里头的一个tuple
             //在R里头寻找
             int R_X = -1,R_Y = -1;
-            for(int blk_r_id = R_start;blk_r_id <= R_end;blk_r_id++){
+            for(int blk_r_id = pre_ptr.blk_id;blk_r_id <= R_end;blk_r_id++){
                 unsigned char * ptr_r = readBlockFromDisk(blk_r_id,&buf);
-                for(int pos_r_id = 0;pos_r_id < TUPLE_ELE_NUM;pos_r_id ++){
+                for(int pos_r_id = pre_ptr.pos_id;pos_r_id < TUPLE_ELE_NUM;pos_r_id ++){
                     get_tuple_num(ptr_r,pos_r_id,&R_X,&R_Y);
                     // printf("R_X = %d,R_Y = %d\n",R_X,R_Y);
                     if(S_X < R_X){
@@ -600,10 +606,10 @@ int Sort_Merge_Join(int R_start,int R_end,int S_start,int S_end){
                         //将其写入数据库中
                         //更新ptr指针
                         join ++;
-                        
+                        // printf("blk_r_id = %d,pos_r_id = %d\n",blk_r_id,pos_r_id);
                         if(pre_ptr.value != R_X){
                             pre_ptr.blk_id = blk_r_id;
-                            pre_ptr.pos_id = pos_r_id;
+                            pre_ptr.pos_id = 0;
                             pre_ptr.value = R_X;
                         }
                         tuple[tup_pos].X = S_X;
@@ -653,11 +659,14 @@ int Sort_Merge_Join(int R_start,int R_end,int S_start,int S_end){
         result_blk_id ++;
 
     }
-    printf("join = %d\n",join);
+    printf("总共链接 %d次\n",join);
     
 }
 
 int Sort_Merge_intersect(int R_start,int R_end,int S_start,int S_end){
+    printf("----------------\n");
+    printf("基于排序的交算法\n");
+    printf("----------------\n");
     Buffer buf; 
     if (!initBuffer(520, 64, &buf)){
         perror("Buffer Initialization Failed!\n");
@@ -681,25 +690,26 @@ int Sort_Merge_intersect(int R_start,int R_end,int S_start,int S_end){
             //得到S里头的一个tuple
             //在R里头寻找
             int R_X = -1,R_Y = -1;
-            for(int blk_r_id = R_start;blk_r_id <= R_end;blk_r_id++){
+            for(int blk_r_id = pre_ptr.blk_id;blk_r_id <= R_end;blk_r_id++){
                 unsigned char * ptr_r = readBlockFromDisk(blk_r_id,&buf);
-                for(int pos_r_id = 0;pos_r_id < TUPLE_ELE_NUM;pos_r_id ++){
+                for(int pos_r_id = pre_ptr.pos_id;pos_r_id < TUPLE_ELE_NUM;pos_r_id ++){
                     get_tuple_num(ptr_r,pos_r_id,&R_X,&R_Y);
-                    // printf("R_X = %d,R_Y = %d\n",R_X,R_Y);
                     if(S_X < R_X){
                         break;
+                    }
+                    if(S_X == R_X){
+                        if(pre_ptr.value != R_X){
+                            pre_ptr.blk_id = blk_r_id;
+                            pre_ptr.pos_id = 0;
+                            pre_ptr.value = R_X;
+                        }
                     }
                     if(S_X == R_X && S_Y == R_Y){
                         //此时join
                         //将其写入数据库中
                         //更新ptr指针
+                        printf("(X = %d,Y = %d)\n",S_X,S_Y);
                         join ++;
-                        
-                        if(pre_ptr.value != R_X){
-                            pre_ptr.blk_id = blk_r_id;
-                            pre_ptr.pos_id = pos_r_id;
-                            pre_ptr.value = R_X;
-                        }
                         tuple[tup_pos].X = S_X;
                         tuple[tup_pos].Y = S_Y;
                         tup_pos ++;
@@ -736,7 +746,7 @@ int Sort_Merge_intersect(int R_start,int R_end,int S_start,int S_end){
         result_blk_id ++;
 
     }
-    printf("join = %d\n",join);
+    printf("S和R的交集一共有%d个元组\n",join);
     
 }
 
@@ -749,7 +759,7 @@ int main(){
     // select_by_index(350,381);//task2中2表的数据存在250~265的部分
     // task4
     // Sort_Merge_Join(250,265,350,381);
-    // Sort_Merge_intersect(250,265,350,381);
+    Sort_Merge_intersect(250,265,350,381);
 
     return 0;
 }
