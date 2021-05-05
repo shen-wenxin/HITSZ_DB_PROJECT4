@@ -69,7 +69,7 @@ int LinerSearch(int key){
 
     for(int blk_id = S_START;blk_id <= S_END;blk_id ++){
         printf("读入数据块%d\n",blk_id);
-        if ((blk = readBlockFromDisk(blk_id, &buf)) == NULL){
+        if ((blk = readBlockFromDisk(blk_id, &buf)) == NULL){//读入数据
             perror("Reading Block Failed!\n");
             return -1;
         }
@@ -79,11 +79,11 @@ int LinerSearch(int key){
             for (int k = 0; k < 4; k++){
                 str[k] = *(blk + i*8 + k);
             }
-            C = atoi(str);
+            C = atoi(str);//得到tuple第一个元素的值
             for (int k = 0; k < 4; k++){
                 str[k] = *(blk + i*8 + 4 + k);
             }
-            D = atoi(str);
+            D = atoi(str);//得到tuple第二个元素的值
             if(C == 50  || (blk_id == S_END && i == 6)){
                 if(C == 50){
                     tuple_num ++;
@@ -91,10 +91,11 @@ int LinerSearch(int key){
                     for (int k = 0;k < 8;k ++){
                         *(blk_w + blk_w_num * 8 + k) = *(blk + i*8 + k);
                     }
-                    blk_w_num ++;
+                    blk_w_num ++;//满足条件，写入
                 }
 
                 if(blk_w_num == TUPLE_NUM_IN_BLK || (blk_id == S_END && i == 6)){
+                    //待写tuple的blk的tuple个数满了，或者已经到读的blk的结尾了，将结果写入
                     unsigned char str_blk_w_id[4];
                     int2str(str_blk_w_id, blk_w_id + 1);
                     for (int k = 0;k < 4;k ++){
@@ -484,7 +485,7 @@ int select_with_index(int start,int end,int rid_s,int * rid_e, Buffer * buf,int 
     for(int blk_id = start;blk_id <= end;blk_id ++){
         printf("读入索引块%d\n",blk_id);
         unsigned char * ptr = readBlockFromDisk(blk_id,buf);
-        int id = get_large_blk_id(ptr, key);
+        int id = get_large_blk_id(ptr, key);//根据索引得到需要的id值
         if(id != -1){
             freeBlockInBuffer(ptr,buf);
             memset(ptr,0,sizeof(ptr));
@@ -698,6 +699,7 @@ int Sort_Merge_intersect(int R_start,int R_end,int S_start,int S_end){
                         break;
                     }
                     if(S_X == R_X){
+                        //更新ptr指针
                         if(pre_ptr.value != R_X){
                             pre_ptr.blk_id = blk_r_id;
                             pre_ptr.pos_id = 0;
@@ -707,7 +709,7 @@ int Sort_Merge_intersect(int R_start,int R_end,int S_start,int S_end){
                     if(S_X == R_X && S_Y == R_Y){
                         //此时join
                         //将其写入数据库中
-                        //更新ptr指针
+                        
                         printf("(X = %d,Y = %d)\n",S_X,S_Y);
                         join ++;
                         tuple[tup_pos].X = S_X;
