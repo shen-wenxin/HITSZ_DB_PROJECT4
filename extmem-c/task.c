@@ -748,7 +748,7 @@ int main(){
     // task3
     // select_by_index(350,381);//task2中2表的数据存在250~265的部分
     // task4
-    Sort_Merge_Join(250,265,350,381);
+    // Sort_Merge_Join(250,265,350,381);
     // Sort_Merge_intersect(250,265,350,381);
 
     return 0;
